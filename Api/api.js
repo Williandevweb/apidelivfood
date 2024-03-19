@@ -9,6 +9,7 @@ const mysql = require('mysql2/promise');
 const http = require('http');
 const fileUpload = require('express-fileupload');
 const app = express();
+const fs = require('fs');
 const server = http.createServer(app);
 const io = socketIO(server);
 
@@ -16,7 +17,9 @@ const io = socketIO(server);
 const port = 8005;
 
 // ---------- ID DA EMPRESA QUE SERÁ ATIVADO ---------------- //
-const idClient = '129';
+const idClient = '154';
+
+process.setMaxListeners(20);
 
 // ----------  SERVIÇO EXPRESS ---------------- //
 app.use(express.json());
@@ -26,6 +29,40 @@ extended: true
 app.use(fileUpload({
 debug: true
 }));
+
+const SESSIONS_FILE = './whatsapp-sessions.json';
+
+const criarArquivoSessaoSeNaoExistir = function() {
+
+  if (!fs.existsSync(SESSIONS_FILE)) {
+    try {
+      fs.writeFileSync(SESSIONS_FILE, JSON.stringify([]));
+    } catch(err) {
+      console.log('Falha ao criar arquivo: ', err);
+    }
+  }
+}
+
+criarArquivoSessaoSeNaoExistir();
+
+const salvarEstadoConexao = function(estado) {
+  try {
+    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(estado));
+  } catch(err) {
+    console.log('Erro ao salvar estado de conexão: ', err);
+  }
+}
+
+const obterEstadoConexao = function() {
+  try {
+    const conteudoArquivo = fs.readFileSync(SESSIONS_FILE, 'utf8');
+    const estado = JSON.parse(conteudoArquivo);
+    return estado;
+  } catch(err) {
+    console.log('Erro ao obter estado de conexão: ', err);
+    return null;
+  }
+}
 
 // ----------  ROTA DEFAULT APENAS PARA CONFIRMAÇÃO QUE API ESTÁ ATIVA ---------------- //
 app.get('/', (req, res) => {
@@ -64,7 +101,7 @@ const client = new Client({
     //executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     //===================================================================================
     // CAMINHO DO CHROME PARA LINUX (REMOVER O COMENTÁRIO ABAIXO)
-    //executablePath: '/usr/bin/google-chrome-stable',
+    executablePath: '/usr/bin/google-chrome-stable',
     //===================================================================================
     args: [
       '--no-sandbox',
@@ -83,44 +120,42 @@ client.initialize();
 
 // ---------- EVENTOS DE CONEXÃO EXPORTADOS PARA O INDEX.HTML VIA SOCKET ---------------- //
 io.on('connection', function(socket) {
-  socket.emit('message', 'Iniciado');
-  socket.emit('qr', '../../_core/_cdn/img/loading-load.gif');
 
-client.on('qr', (qr) => {
-    console.log('QR RECEIVED', qr);
+  if(obterEstadoConexao() == true){
+    socket.emit('qr', '../../_core/_cdn/img/check.svg'); 
+    socket.emit('message', 'conectado'); 
+  }else{
+    socket.emit('qr', '../../_core/_cdn/img/loading-load.gif');
+    socket.emit('message', 'desconectado'); 
+  }
+
+  client.on('qr', (qr) => {
     qrcode.toDataURL(qr, (err, url) => {
-      socket.emit('qr', url);
-      socket.emit('message', 'QRCode recebido, aponte a câmera  seu celular!');
+    socket.emit('message', 'desconectado'); 
+    socket.emit('qr', url);
     });
-});
+  });
 
-client.on('ready', () => {
+  client.on('ready', () => {
     socket.emit('ready', 'Dispositivo pronto!');
-    socket.emit('message', 'Dispositivo pronto!');
-    socket.emit('qr', '../../_core/_cdn/img/check.svg')	
-    console.log('Dispositivo pronto');
-});
+    socket.emit('qr', '../../_core/_cdn/img/check.svg');
+    socket.emit('message', 'conectado'); 	
+    salvarEstadoConexao(true);	
+  });
 
-client.on('authenticated', () => {
-    socket.emit('authenticated', 'Autenticado!');
-    socket.emit('message', 'Autenticado!');
-    console.log('Autenticado');
-});
+  client.on('authenticated', () => {
+      socket.emit('authenticated', 'Autenticado!');
+      socket.emit('qr', '../../_core/_cdn/img/check.svg');
+      socket.emit('message', 'conectado'); 
+      salvarEstadoConexao(true);	
+  });
 
-client.on('auth_failure', function() {
-    socket.emit('message', 'Falha na autenticação, reiniciando...');
-    console.error('Falha na autenticação');
-});
-
-client.on('change_state', state => {
-  console.log('Status de conexão: ', state );
-});
-
-client.on('disconnected', (reason) => {
-  socket.emit('message', 'Cliente desconectado!');
-  console.log('Cliente desconectado', reason);
-  client.initialize();
-});
+  client.on('disconnected', (reason) => {
+    socket.emit('qr', '../../_core/_cdn/img/loading-load.gif');  
+    socket.emit('message', 'desconectado');   
+    salvarEstadoConexao(false); 
+    client.initialize();
+  });
 });
 
 // ----------  INICIO FUNÇÕES CONSULTAS BANCO DE DADOS MYSQL ---------------- //
