@@ -14,10 +14,10 @@ const server = http.createServer(app);
 const io = socketIO(server);
 
 // ---------- PORTA ONDE O SERVIÇO SERÁ INICIADO ---------------- //
-const port = 8005;
+const port = 8007;
 
 // ---------- ID DA EMPRESA QUE SERÁ ATIVADO ---------------- //
-const idClient = '154';
+const idClient = '258';
 
 process.setMaxListeners(20);
 
@@ -65,8 +65,22 @@ const obterEstadoConexao = function() {
 }
 
 // ----------  ROTA DEFAULT APENAS PARA CONFIRMAÇÃO QUE API ESTÁ ATIVA ---------------- //
+// app.get('/', (req, res) => {
+//   res.send('Conectado');
+// });
+
+app.use(express.json());
+app.use(express.urlencoded({
+extended: true
+}));
+app.use(fileUpload({
+debug: true
+}));
+app.use("/", express.static(__dirname + "/"))
 app.get('/', (req, res) => {
-  res.send('Conectado');
+  res.sendFile('index.html', {
+    root: __dirname
+  });
 });
 
 // ----------  REALIZA A CONEXÃO COM O BANCO DE DADOS DO SISTEMA DELIVERY ---------------- //
@@ -83,27 +97,27 @@ app.get('/', (req, res) => {
 //Produção
 const createConnection = async () => {
 	return await mysql.createConnection({
-		host: '191.252.143.38',
-		user: 'delivfoo_delivfo',
-		password: 'lh6{45gwNZ+H',
-		database: 'delivfoo_delivery'   
+		host: '67.23.238.50',
+		user: 'slee3957_sleeck',
+		password: '3#jF~+g@4BY3',
+		database: 'slee3957_sleeck'   
 	});
 }
 
 // ---------- PARÂMETROS DO CLIENT DO WHATSAPP ---------------- //
 const client = new Client({
   authStrategy: new LocalAuth({ clientId: idClient }),
-  puppeteer: { headless: true,
-    // CAMINHO DO CHROME PARA WINDOWS (REMOVER O COMENTÁRIO ABAIXO)
-    //executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-    //===================================================================================
-    // CAMINHO DO CHROME PARA MAC (REMOVER O COMENTÁRIO ABAIXO)
-    //executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    //===================================================================================
-    // CAMINHO DO CHROME PARA LINUX (REMOVER O COMENTÁRIO ABAIXO)
-    executablePath: '/usr/bin/google-chrome-stable',
-    //===================================================================================
-    args: [
+  puppeteer: {
+  // CAMINHO DO CHROME PARA WINDOWS (REMOVER O COMENTÁRIO ABAIXO)
+  //executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+  //===================================================================================
+  // CAMINHO DO CHROME PARA MAC (REMOVER O COMENTÁRIO ABAIXO)
+  //executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  //===================================================================================
+  // CAMINHO DO CHROME PARA LINUX (REMOVER O COMENTÁRIO ABAIXO)
+  //executablePath: '/usr/bin/google-chrome-stable',
+  //===================================================================================
+	args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
@@ -112,8 +126,15 @@ const client = new Client({
       '--no-zygote',
       '--single-process', // <- this one doesn't works in Windows
       '--disable-gpu'
-    ] }
+    ]
+  },
+   webVersionCache: {
+                type: 'remote',
+                remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2407.3.html',
+            },
+    
 });
+
 
 // ----------  INITIALIZE DO CLIENT DO WHATSAPP ---------------- //
 client.initialize();
@@ -163,8 +184,47 @@ const consultaEstabAbertoFechado = async () => {
   const connection = await createConnection();
 
   try {
-      const [rows] = await connection.execute(`SELECT funcionamento FROM estabelecimentos WHERE estabelecimentos.funcionamento = ?`, ['2']);
+      const [rows] = await connection.execute(`SELECT funcionamento FROM estabelecimentos WHERE id = ? AND funcionamento = ?`, [idClient,'2']);
 
+      if (rows.length > 0) {
+          return true; //Estabelecimento fechado
+      } else {
+          return false; //Estabelecimento Aberto
+      }
+  } catch (error) {
+      console.error('Erro na consulta SQL:', error.message);
+      return "false";
+  } finally {
+      // Encerre a conexão após a execução da consulta
+      connection.end();
+  }
+};
+
+const consultaSubdominio = async () => {
+  const connection = await createConnection();
+
+  try {
+      const [rows] = await connection.execute(`SELECT subdominio FROM estabelecimentos WHERE id = ? `, [idClient]);
+
+      if (rows.length > 0) {
+          return rows; //Estabelecimento fechado
+      } else {
+          return "1"; //Estabelecimento Aberto
+      }
+  } catch (error) {
+      console.error('Erro na consulta SQL:', error.message);
+      return "false";
+  } finally {
+      // Encerre a conexão após a execução da consulta
+      connection.end();
+  }
+};
+
+const consultaCliente = async (whatsapp,campo) => {
+  const connection = await createConnection();
+
+  try {
+      const [rows] = await connection.execute(`SELECT ${campo} FROM clientes WHERE id_estabelecimento = ? AND whatsapp = ? `, [idClient, whatsapp]);
       if (rows.length > 0) {
           return rows;
       } else {
@@ -175,6 +235,50 @@ const consultaEstabAbertoFechado = async () => {
       return "false";
   } finally {
       // Encerre a conexão após a execução da consulta
+      connection.end();
+  }
+};
+
+const createCliente = async (nome,whatsapp,campo) => {
+
+  const connection = await createConnection();
+  const dataAtual = new Date();
+
+  try {
+    const sql = `INSERT INTO clientes (id_estabelecimento,nome,datadeinclusao,whatsapp,qtdpontos,qtdpedidos,ativo,${campo}) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+    
+    const values = [idClient, nome, dataAtual, whatsapp, 0, 0, 1, dataAtual];
+    const [rows] = await connection.execute(sql, values);
+
+    if (rows.length > 0) {
+        return true;
+    } else {
+        return false;
+    }
+  } catch (error) {
+      console.error('Erro na consulta SQL:', error.message);
+      return false;
+  } finally {
+      connection.end();
+  }
+};
+
+const updateMsgPeriodicidade = async (whatsapp, campo) => {
+  const connection = await createConnection();
+  const dataAtual = new Date();
+
+  try {
+    const [rows] = await connection.execute(`UPDATE clientes SET ${campo} = ? WHERE whatsapp = ?`, [dataAtual, whatsapp]);
+
+    if (rows.length > 0) {
+        return true;
+    } else {
+        return false;
+    }
+  } catch (error) {
+      console.error('Erro na consulta SQL:', error.message);
+      return false;
+  } finally {
       connection.end();
   }
 };
@@ -234,26 +338,7 @@ app.post('/status', [
   }
 });
 
- // ----------  INICIO FUNÇÕES INTERNAS ---------------- //
- 
- const obterEstabaAbertoFechado = async () => {
-  try {
-    var estababertofechado = "";
-    return estababertofechado = await consultaEstabAbertoFechado();    
-  } catch (error) {
-    console.error('Erro ao obter o horário se o estabelecimento está aberto ou fechado:', error);
-  }
-};
-
-const verificarEstabelecimento = async () => {
-  var resultado = await obterEstabaAbertoFechado();
-
-  if (resultado[0].funcionamento === '2') {
-    return resultado[0].funcionamento;
-  }
-};
-
-function obterSaudacao() {
+function obterPeriodoDoDia() {
   const agora = new Date();
   const hora = agora.getHours();
 
@@ -268,26 +353,103 @@ function obterSaudacao() {
   }
 }
 
+async function somaDiasPeriodicidade(data){
+
+  // Obtém a data atual
+  var dataAtual = new Date();
+
+  // Converte a string para um objeto de data JavaScript
+  var dataSaudacao = new Date(data);
+
+  // Compara apenas o dia, mês e ano
+  var mesmoDia = dataAtual.getDate() === dataSaudacao.getDate() &&
+                 dataAtual.getMonth() === dataSaudacao.getMonth() &&
+                 dataAtual.getFullYear() === dataSaudacao.getFullYear();
+
+  if (mesmoDia) {
+      return "true";
+  } else {
+      // Calcula a diferença em milissegundos
+      var diferencaEmMilissegundos = Math.abs(dataAtual - dataSaudacao);
+
+      // Converte a diferença para dias
+      var diferencaEmDias = Math.ceil(diferencaEmMilissegundos / (1000 * 60 * 60 * 24));
+
+      if (diferencaEmDias >= 1) {
+          return "false";
+      } else {
+          return "true";
+      }
+  }
+}
+
 // ---------- EVENTO DE ESCUTA/ENVIO DE MENSAGENS RECEBIDAS PELA API ---------------- //
 client.on('message', async msg => {
 
   const contact = await msg.getContact();
-  const senderName = contact.name;
+  const telefone = contact.number;
 
-  var estabAbertoFechado = await verificarEstabelecimento();
-  var saudacaoDeContato = await obterSaudacao();
+  var nome = "";
+
+  if(contact.name !== undefined){
+    nome = contact.name;
+  }else if(contact.pushname !== undefined){
+    nome = contact.pushname;
+  }else{
+    nome = telefone;
+  }
+
+  var resultadoEstabAbertoFechado = await consultaEstabAbertoFechado();
+  var saudacaoDeContato = obterPeriodoDoDia();
+  var url = await consultaSubdominio();
+  var periodicidadeData = "";
 
   if (msg.body !== null && !msg.from.includes('@g.us') && msg.type.toLocaleLowerCase() !== "ciphertext" && msg.type.toLocaleLowerCase() !== "e2e_notification" && msg.type.toLocaleLowerCase() !== ""){
-    if(estabAbertoFechado == 2){
-      msg.reply(saudacaoDeContato + " " + senderName + " 😊 Estamos fora do horário de expediente no momento. Mas não se preocupe, assim que voltarmos, estaremos prontos para te ajudar! 🌟");
-    }else if(estabAbertoFechado != 2 && msg.body === "1"){
-      msg.reply("🎉 Ótima escolha " + senderName + "! Para fazer seu pedido pelo cardápio online, acesse nosso menu digital através do link 👉\n\nhttps://meudeliv.com.br/Theosacaaaidelivery\n\nEscolha seus produtos favoritos e siga as instruções para concluir seu pedido. Se precisar de ajuda, estamos à disposição.");
-    }else if(estabAbertoFechado != 2 && msg.body === "2"){
-      msg.reply("🎉 Ótima escolha, " + senderName + "! Estamos felizes em poder atendê-lo(a). 😊\n\nPara agilizar seu atendimento, por favor, nos informe o que deseja, seu pedido e a forma de pagamento que mais gosta. Estamos aqui para tornar seu dia mais saboroso e prático!\n\nSe tiver alguma dúvida, não hesite em perguntar. Estamos à disposição para ajudar! 🌟");
-    }else if(estabAbertoFechado != 2 && msg.body === "3"){
-      msg.reply("Prezado(a) " + senderName + ", agradecemos por entrar em contato conosco. Estamos prontos para lhe oferecer um atendimento personalizado.\n\nPor favor, informe-nos sobre suas necessidades e dúvidas. Estamos aqui para fornecer todas as informações necessárias e garantir a melhor experiência para você.\n\nSeu conforto e satisfação são nossa prioridade. Fique à vontade para fazer suas perguntas ou fornecer mais detalhes sobre o que precisa. Estamos à disposição!");
-    }else if (estabAbertoFechado != 2){
-      msg.reply(saudacaoDeContato + " " + senderName + " Como podemos te ajudar hoje? Escolha uma opção digitando o número correspondente:\n\n1️⃣ Para pedir pelo cardápio online.\n\n2️⃣ Para fazer seu pedido pelo WhatsApp.\n\n3️⃣ Para falar com um de nossos atendentes.\n\n\nDigite o número da opção desejada e estaremos prontos para te atender! 😊");
+
+    if(resultadoEstabAbertoFechado == true){ // true = Estabelecimento fechado
+      var clienteExistente = await consultaCliente(telefone.substring(2), "data_ausencia");
+      if(clienteExistente === "1"){ // 1 = Não existe este cliente cadastrado ainda
+        await createCliente(nome, telefone.substring(2), "data_ausencia");
+        periodicidadeData = "false"; // false = Não enviou mensagem de ausencia ainda      
+      }else if(clienteExistente[0].data_ausencia == null){
+        periodicidadeData = "false";    
+      }else{
+        periodicidadeData = somaDiasPeriodicidade(clienteExistente[0].data_ausencia);
+      }
+    }else{
+      var clienteExistente = await consultaCliente(telefone.substring(2), "data_saudacao");
+      if(clienteExistente === "1"){ // 1 = Não existe este cliente cadastrado ainda
+        await createCliente(nome, telefone.substring(2), "data_saudacao");
+        periodicidadeData = "false"; // false = Não enviou mensagem de ausencia ainda            
+      }else if(clienteExistente[0].data_saudacao == null){
+        periodicidadeData = "false";    
+      }else{
+        periodicidadeData = somaDiasPeriodicidade(clienteExistente[0].data_saudacao);     
+      }
+    }
+
+    if(periodicidadeData === "false"){
+
+      if(resultadoEstabAbertoFechado === true){ // true = Estabelecimento fechado
+        
+        msg.reply(saudacaoDeContato + " " + nome + " 😊 Estamos fora do horário de expediente no momento. Mas não se preocupe, assim que voltarmos, estaremos prontos para lhe atender! 🌟");
+        
+        updateMsgPeriodicidade(telefone.substring(2), "data_ausencia");
+      }else{
+       
+        msg.reply(`${saudacaoDeContato}, ${nome}! Beleza? 😊 Vamos facilitar pra você! Escolha:\n\n1️⃣ Para pedir pelo cardápio.\n\n2️⃣ Para falar com um dos nossos atendentes.\n\n\nSó digitar o número e estamos à disposição! 👍🚀`);
+        
+        updateMsgPeriodicidade(telefone.substring(2), "data_saudacao");
+      }
+    }
+    
+    if(msg.body === "1"){
+
+      msg.reply(`🎉 Ótima escolha ${nome}!\n\nacesse através do link 👉 https://${url[0].subdominio}.sleeck.com.br`);
+    
+    }else if(msg.body === "2"){
+
+      msg.reply(`E aí, ${nome}! Beleza? 😎\n\nBora agilizar seu pedido? Só manda aí o que quer e como prefere pagar. A gente tá aqui pra fazer seu dia ficar top! 🍔💳\n\nQualquer coisa, tamo junto pra ajudar! 😉🌟`);
     }
 	}
 });
