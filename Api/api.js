@@ -432,7 +432,7 @@ client.on('message', async msg => {
 
       if(resultadoEstabAbertoFechado === true){ // true = Estabelecimento fechado
         
-        msg.reply(saudacaoDeContato + " " + nome + " 😊 Estamos fora do horário de expediente no momento. Mas não se preocupe, assim que voltarmos, estaremos prontos para lhe atender! 🌟");
+        msg.reply(saudacaoDeContato + " " + nome + " 😊 Estamos fora do horário de expediente no momento. Mas não se preocupe, assim que voltarmos, estaremos prontos para lhe atender! 🚀");
         
         updateMsgPeriodicidade(telefone.substring(2), "data_ausencia");
       }else{
