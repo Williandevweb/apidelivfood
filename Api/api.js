@@ -455,12 +455,12 @@ client.on('message', async msg => {
 
       if(resultadoEstabAbertoFechado === true){ // true = Estabelecimento fechado
       
-        msg.reply(saudacaoDeContato + " " + nome + " 😊 Estamos fora do horário de expediente no momento. Mas não se preocupe, assim que voltarmos, estaremos prontos para lhe atender!");
+        msg.reply(saudacaoDeContato + "! Beleza? 😊 Estamos fora do horário de expediente no momento. Mas não se preocupe, assim que voltarmos, estaremos prontos para lhe atender!");
         
         updateMsgPeriodicidade(telefone.substring(2), "data_ausencia");
       }else{
        
-        msg.reply(`${saudacaoDeContato}, ${nome}! Beleza? 😊 O Big Lanche tá aqui pra fazer sua noite ficar top! 🍔\n\nVamos facilitar pra você! Escolha:\n\n1️⃣ Pedir pelo Cardápio Digital (Produzido mais rapidamente)\n\n2️⃣ Falar com um atendente\n\n\nSó digitar o número e estamos à disposição! 👍🚀`);
+        msg.reply(`${saudacaoDeContato}! Beleza? 😊 O Big Lanche tá aqui pra fazer sua noite ficar top! 🍔\n\nVamos facilitar pra você! Escolha:\n\n1️⃣ Pedir pelo Cardápio Digital (Produzido mais rapidamente)\n\n2️⃣ Falar com um atendente\n\n\nSó digitar o número e estamos à disposição! 👍🚀`);
         
         updateMsgPeriodicidade(telefone.substring(2), "data_saudacao");
       }
@@ -468,7 +468,7 @@ client.on('message', async msg => {
     
     if(msg.body === "1"){
 
-      msg.reply(`🎉 Ótima escolha ${nome}!\n\nPelo Cardápio Digital seu pedido será produzido mais rapidamente. acesse através do link 👉 https://${url[0].subdominio}.sleeck.com.br`);
+      msg.reply(`🎉 Ótima escolha!\n\nPelo Cardápio Digital seu pedido será produzido mais rapidamente. acesse através do link 👉 https://${url[0].subdominio}.sleeck.com.br`);
     
     }else if(msg.body === "2"){
 
