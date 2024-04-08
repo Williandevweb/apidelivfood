@@ -407,37 +407,60 @@ client.on('message', async msg => {
   if (msg.body !== null && !msg.from.includes('@g.us') && msg.type.toLocaleLowerCase() !== "ciphertext" && msg.type.toLocaleLowerCase() !== "e2e_notification" && msg.type.toLocaleLowerCase() !== ""){
 
     if(resultadoEstabAbertoFechado == true){ // true = Estabelecimento fechado
+
       var clienteExistente = await consultaCliente(telefone.substring(2), "data_ausencia");
+
       if(clienteExistente === "1"){ // 1 = Não existe este cliente cadastrado ainda
         await createCliente(nome, telefone.substring(2), "data_ausencia");
+
         periodicidadeData = "false"; // false = Não enviou mensagem de ausencia ainda      
+
       }else if(clienteExistente[0].data_ausencia == null){
-        periodicidadeData = "false";    
+
+        periodicidadeData = "false";   
+
       }else{
-        periodicidadeData = somaDiasPeriodicidade(clienteExistente[0].data_ausencia);
+
+        periodicidadeData =await somaDiasPeriodicidade(clienteExistente[0].data_ausencia);
+
       }
     }else{
+      
       var clienteExistente = await consultaCliente(telefone.substring(2), "data_saudacao");
+
       if(clienteExistente === "1"){ // 1 = Não existe este cliente cadastrado ainda
+
         await createCliente(nome, telefone.substring(2), "data_saudacao");
         periodicidadeData = "false"; // false = Não enviou mensagem de ausencia ainda            
+      
       }else if(clienteExistente[0].data_saudacao == null){
+
         periodicidadeData = "false";    
+      
       }else{
-        periodicidadeData = somaDiasPeriodicidade(clienteExistente[0].data_saudacao);     
+
+        periodicidadeData = await somaDiasPeriodicidade(clienteExistente[0].data_saudacao);     
+      
       }
+    }
+
+    if (msg.body.includes('acompanhar o status do meu pedido')){
+
+      msg.reply(`🛒 Agradecemos pela sua compra! 🎉 Estaremos atualizando você regularmente sobre o status do seu pedido. Fique tranquilo(a), estamos cuidando de tudo para você. 😊`);
+
+      periodicidadeData = "true";
     }
 
     if(periodicidadeData === "false"){
 
       if(resultadoEstabAbertoFechado === true){ // true = Estabelecimento fechado
-        
-        msg.reply(saudacaoDeContato + " " + nome + " 😊 Estamos fora do horário de expediente no momento. Mas não se preocupe, assim que voltarmos, estaremos prontos para lhe atender! 🚀");
+      
+        msg.reply(saudacaoDeContato + " " + nome + " 😊 Estamos fora do horário de expediente no momento. Mas não se preocupe, assim que voltarmos, estaremos prontos para lhe atender!");
         
         updateMsgPeriodicidade(telefone.substring(2), "data_ausencia");
       }else{
        
-        msg.reply(`${saudacaoDeContato}, ${nome}! Beleza? 😊 Vamos facilitar pra você! Escolha:\n\n1️⃣ Para pedir pelo cardápio.\n\n2️⃣ Para falar com um dos nossos atendentes.\n\n\nSó digitar o número e estamos à disposição! 👍🚀`);
+        msg.reply(`${saudacaoDeContato}, ${nome}! Beleza? 😊 O Big Lanche tá aqui pra fazer sua noite ficar top! 🍔\n\nVamos facilitar pra você! Escolha:\n\n1️⃣ Pedir pelo Cardápio Digital (Produzido mais rapidamente)\n\n2️⃣ Falar com um atendente\n\n\nSó digitar o número e estamos à disposição! 👍🚀`);
         
         updateMsgPeriodicidade(telefone.substring(2), "data_saudacao");
       }
@@ -445,14 +468,16 @@ client.on('message', async msg => {
     
     if(msg.body === "1"){
 
-      msg.reply(`🎉 Ótima escolha ${nome}!\n\nacesse através do link 👉 https://${url[0].subdominio}.sleeck.com.br`);
+      msg.reply(`🎉 Ótima escolha ${nome}!\n\nPelo Cardápio Digital seu pedido será produzido mais rapidamente. acesse através do link 👉 https://${url[0].subdominio}.sleeck.com.br`);
     
     }else if(msg.body === "2"){
 
-      msg.reply(`E aí, ${nome}! Beleza? 😎\n\nBora agilizar seu pedido? Só manda aí o que quer e como prefere pagar. A gente tá aqui pra fazer seu dia ficar top! 🍔💳\n\nQualquer coisa, tamo junto pra ajudar! 😉🌟`);
+      msg.reply(`Por favor, informe as seguintes informações:\n- Seu pedido\n- Nome\n- Endereço\n- Forma de pagamento (cartão, dinheiro ou pix, troco)\n\nE aguarde que já iremos lhe atender! 😉`);
+    
     }
 	}
 });
+
 
 // ---------- INITIALIZE DO SERVIÇO ---------------- //
 server.listen(port, function() {
