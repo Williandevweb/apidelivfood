@@ -127,12 +127,7 @@ const client = new Client({
       '--single-process', // <- this one doesn't works in Windows
       '--disable-gpu'
     ]
-  },
-   webVersionCache: {
-                type: 'remote',
-                remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2409.0.html',
-            },
-    
+  }
 });
 
 

@@ -31,7 +31,7 @@
     "qrcode": "^1.4.4",
     "socket.io": "2.3.0",
     "util": "^0.12.4",
-    "whatsapp-web.js": "^1.23.0"
+    "whatsapp-web.js": "github:pedroslopez/Whatsapp-web.js#webpack-exodus"
   },
   "devDependencies": {
     "nodemon": "^2.0.19"
